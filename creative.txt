@@ -1,0 +1,18 @@
+creative.txt
+
+Danny Weiner - 435140
+Emily Coco - 429297
+
+http://ec2-52-33-218-205.us-west-2.compute.amazonaws.com/~ecoco/module6/client.html
+http://ec2-54-213-147-183.us-west-2.compute.amazonaws.com/~dnweiner/module6/client.html
+
+For the creative portion, we did added a number of features, varying in size, including:
+
+-autofocus on username field
+-currently logged-in username displays at top
+-creators can delete their own rooms, which sends all users back to the starting room ("room1")
+-creators can unban the players they ban
+-creators' names have asterisks around them when they send messages
+
+TA Login instructions:
+If you want to login as your own user, create your own username by entering a nickname and clicking "logon".

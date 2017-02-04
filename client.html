@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="utf-8">
+        <title>Chatroom Client</title>
+        <style type="text/css">
+			body{
+				background-color: turquoise; /* what color to make the background */
+				margin: 0 auto;
+				padding: 0;
+				font:12px/16px Verdana, sans-serif; /* default font */
+			}
+			.rooms, .users {
+				display: inline;
+				border: 2px groove darkgreen;
+				color: darkgreen;
+				background-color: lightgreen;
+				float: right;
+				margin-right: 1%;
+				padding: 2px;
+			}
+			.users {
+				clear: right;
+			}
+			#chatlog {
+				color: darkgreen;
+			}
+			#current_user {
+				float: right;
+			}
+			#delete_room {
+				margin: 100px;
+			}
+
+
+		</style>
+		<script src="/socket.io/socket.io.js"></script>
+		<script src="https://ajax.googleapis.com/ajax/libs/jquery/2.2.0/jquery.min.js" type="text/javascript"></script>
+		<script type="text/javascript">
+ 
+		var socketio = io.connect();
+		
+		socketio.on("message_to_client",function(data) {
+			var pattern = /^[\w\d_\s\-\'\!\*]+$/g; //regex check
+			if(pattern.test(data['message'])) {
+				$("#chatlog").append("<hr>"); //draw a horizontal line for style points		
+				if (data['creator']) { //if room's creator
+					$("#chatlog").append("<strong>*" + data['user'] + "*: </strong>" + data['message']); //display creator username in asterisks in bold and their message 
+				} else { //if a general user
+					$("#chatlog").append("<strong>" + data['user'] + ": </strong>" + data['message']); //display username in bold and their message 
+				}
+			} else {
+				alert("Invalid message.");
+			}
+		});
+		
+		socketio.on("private_msg_to_client", function(data) {
+			alert(data["sender"] + " says " + data["message"]);
+		});
+		
+		socketio.on("user_not_found", function(data) {
+			alert("User for private message not found");
+		});
+		
+		socketio.on("available_rooms", function(data) {
+			$(".available").html(""); //this way, we don't have duplicate rooms listed
+			var avail_rooms = data['avail_rooms'];
+			for (var i = 0; i < avail_rooms.length; ++i) {  //add each room (button to join) to the list of rooms
+				$(".available").append("<li id='" + i + "'><input type='button' id='join_btn' value='" + avail_rooms[i] + "'></li>");
+			}
+		});	
+		
+		function sendMessage(){
+		   var msg = document.getElementById("message_input").value;
+		   socketio.emit("message_to_server", {message:msg});
+		   document.getElementById("message_input").value = ""; //clear the field
+		}
+		
+		function sendPrivateMessage() {
+			var sendTo = prompt("Who do you want to message?", "Insert username");
+			var msg = document.getElementById("message_input").value;
+			socketio.emit("private_message", {message: msg, user: sendTo});
+			document.getElementById("message_input").value = ""; //clear the field
+        }
+		
+		function addUser() {
+			var user = document.getElementById("username").value;
+			var pattern = /^[\w\d_\s\-]+$/g; //regex check
+			if(pattern.test(user)) {
+				socketio.emit("added_user",{username:user});
+				$(".users").show();
+				$(".rooms").show();
+			} else {
+				alert("Invalid username! Please try again.");
+			}
+			document.getElementById("username").value = ""; //clear the field
+		}		
+		socketio.on("new_user", function(data) {
+			if (data['exists']) {
+				alert("User " + data['username'] + " already exists."); //cannot create a user that already exists
+			} else {
+				alert("You've been logged in as " + data['username']);
+				$("delete_room").html("");
+				$("#current_user").html("<u>Current user:</u> <strong>" + data['username'] + "</strong>"); //display the current user, formatted
+				$("#currentroom").html("<u>Current room:</u> <strong>room1</strong>"); //display the start room, formatted
+			}
+		});
+		socketio.on("users_in_room", function(data) {
+			$(".userslist").html(""); //this way, we don't have duplicate users listed
+			var users_in_room = data['users_in_room'];
+			for (var i = 0; i < users_in_room.length; ++i) {  //add each user to the list of users
+				$(".userslist").append("<li id='" + i + "'>" + users_in_room[i] + "</li>");
+			}
+		});
+		
+		socketio.on("is_creator", function(data){
+			if (!data["room1"]) { //don't display delete button for room1
+				$("#delete_room").html("<input type='button' id='delete_btn' value='Delete'>");
+			}
+			$(".userslist").html(""); //this way, we don't have duplicate users listed
+			var users_in_room = data['users_in_room'];
+			var banned_users = data['banned_users'];
+			for (var i = 0; i < users_in_room.length; ++i) {  //add each user to the list of users
+				$(".userslist").append("<li id='" + users_in_room[i] + "'>" + users_in_room[i] 
+									   +"<input type='button' id='kickout' value='Kick Out'>"
+									   +"<input type='button' id='ban' value='Ban'></li>");
+			}
+			$(".bannedusers").html(""); //this way, we don't have duplicate banned users listed
+			for (var j = 0; j < banned_users.length; ++j) {
+				$(".bannedusers").append("<li id='" + banned_users[j] + "'>" + banned_users[j]
+										 +"<input type='button' id='unban' value='Unban'></li>");
+			}
+		});
+		
+		function addRoom() {
+			var room = document.getElementById("roomname").value;
+			var pattern = /^[\w\d_\s\-]+$/g;
+			if(pattern.test(room)) { //regex check
+				socketio.emit("added_room",{roomname:room}); 
+			} else {
+				alert("Invalid room name! Please try again.");
+			}
+			document.getElementById("roomname").value = ""; //clear the field
+			document.getElementById("password").value = ""; //clear the field
+		}
+		
+		function addLockedRoom() {
+            var room = document.getElementById("roomname").value;
+			var pass = document.getElementById("password").value;
+			var pattern = /^[\w\d_\s\-]+$/g;
+			if(pattern.test(room)) { //regex check
+				socketio.emit("added_lockedroom",{roomname:room, password: pass}); 
+			} else {
+				alert("Invalid room name! Please try again.");
+			}
+			document.getElementById("roomname").value = ""; //clear the field
+			document.getElementById("password").value = ""; //clear the field	
+        }
+		socketio.on("password_needed", function(data) {
+			var pass = prompt("Password:", "Room Password");
+			if (pass != null) {
+                socketio.emit("join_lockedroom", {room: data["room"], password: pass});
+            }
+		});
+		
+		function joinRoom() {
+			var roomToJoin = this.parentNode.id; //the li ids are the indices of the rooms in the rooms array
+			if (isInt(roomToJoin)) { //make sure this index is an int
+				socketio.emit("join_room", {i:roomToJoin});
+			}
+        }
+		
+		function kickout() {
+            var ko_user = this.parentNode.id;
+			socketio.emit("kickout", {"user_to_ko": ko_user});
+        }
+		
+		function ban() {
+            var banned_user = this.parentNode.id;
+			socketio.emit("ban", {"user_to_ban": banned_user});
+        }
+		
+		function unban() {
+			var banned_user = this.parentNode.id;
+			socketio.emit("unban", {"user_to_unban": banned_user});
+		}
+		
+		socketio.on("nocando", function(data) {
+			if (data['why']=="notbanned") {
+				alert("User is not banned from this room!");
+			} else {
+				alert("You cannot kick or ban yourself!");
+			}
+		});
+		
+		socketio.on("banned", function() {
+			alert("You have been banned from this room.");
+		});
+		
+		socketio.on("unbanned", function(data) {
+			alert("You have been unbanned from " + data['room']);
+		});
+		
+		function deleteRoom() {
+			socketio.emit("delete_room");
+			$("#currentroom").html("<u>Current room:</u> <strong>room1</strong>"); //display the current room, formatted
+			$("#delete_room").html("");
+		}
+		
+		socketio.on("deleted", function(data) {
+			alert("Room " + data['deleted_room'] + "has been deleted: all occupants have been returned to room1.");
+		});
+		
+		socketio.on("change_room", function() {
+			socketio.emit("room_swap_required");
+		});
+		
+		socketio.on("room_find", function(data){ //when joining, doublecheck that the target room exists
+			if (!data['find']) {
+                alert("Room not found.");
+            } else if(data['find'] == "current") {
+				alert("You are already in this room!");
+			} else if(data['find'] == "duplicate") {
+				alert("Error: room " + data['room'] + " already exists.");
+			} else {
+				alert("You joined room " + data['room'])
+				$("#chatlog").html("");  //wipe chat when entering a new room
+				$("#currentroom").html("<u>Current room:</u> <strong>" + data['room'] + "</strong>"); //display the current room, formatted
+			}
+			
+		});
+		
+		function isInt(value) { //taken from: http://stackoverflow.com/questions/14636536/how-to-check-if-a-variable-is-an-integer-in-javascript
+			return !isNaN(value) &&
+			parseInt(Number(value)) == value && 
+			!isNaN(parseInt(value, 10));
+		}
+   
+		</script>
+	</head>
+	<body>
+		<input type="text" id="username" placeholder="Username" autofocus>
+		<input type="button" id="user_btn" value="Logon">
+		<br>
+		<input type="text" id="message_input" placeholder="Message">
+		<input type="button" id="send_btn" value="Send">
+		<input type="button" id="private_send" value="Send Private Message">
+		<br> 
+		<div class="users">
+			<p id="current_user"></p>
+			<ul class="userslist">
+			</ul>
+			<ul class="bannedusers">
+			</ul>
+		</div>
+		<br>
+		<br>
+		<br>
+		<div class="rooms">
+			<p id="currentroom"></p>
+			<span id="delete_room"></span>
+			<br>
+			<ul class="available">
+			</ul>
+			<input type="text" id="roomname" placeholder="Room Name">
+			<input type="button" id="roomname_btn" value="Add Room">
+			<br>
+			<input type="text" id="password" placeholder="Room Password">
+			<input type="button" id="password_btn" value="Lock Room">
+		</div>
+		<div id="chatlog">
+			
+		</div>
+	   
+	    <script type="text/javascript">
+			$("#roomname_btn").click(addRoom);
+			$("#send_btn").click(sendMessage);
+			$("#private_send").click(sendPrivateMessage);
+			$("#user_btn").click(addUser);
+			$("#password_btn").click(addLockedRoom);
+			$(document).on("click","#join_btn", joinRoom);
+			$(document).on("click", "#kickout", kickout);
+			$(document).on("click", "#ban", ban);
+			$(document).on("click", "#unban", unban);
+			$(document).on("click", "#delete_btn", deleteRoom);
+	    </script>
+	</body>
+</html>
