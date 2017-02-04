@@ -1,11 +1,5 @@
 creative.txt
 
-Danny Weiner - 435140
-Emily Coco - 429297
-
-http://ec2-52-33-218-205.us-west-2.compute.amazonaws.com/~ecoco/module6/client.html
-http://ec2-54-213-147-183.us-west-2.compute.amazonaws.com/~dnweiner/module6/client.html
-
 For the creative portion, we did added a number of features, varying in size, including:
 
 -autofocus on username field
